@@ -1,4 +1,4 @@
-package com.seanlooong.doesitwork.widget
+package com.seanlooong.doesitwork.utils
 
 import android.annotation.SuppressLint
 import android.graphics.drawable.Drawable
