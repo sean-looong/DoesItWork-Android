@@ -7,7 +7,8 @@ class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-
+        // 初始化datastore
+        DataStoreManager.init(this)
         // 初始化日志系统
         LoggerFactory.initialize(
             context = this,

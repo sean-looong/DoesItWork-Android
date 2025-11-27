@@ -1,5 +1,6 @@
 package com.seanlooong.doesitwork.camera
 
+import PermissionRequest
 import android.Manifest
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -21,7 +22,6 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.navigation.NavHostController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.seanlooong.doesitwork.R
-import com.seanlooong.doesitwork.utils.PermissionRequest
 import com.seanlooong.doesitwork.utils.painterResourceCompat
 import com.seanlooong.exerciseandroid.ui.widgets.SmallTopAppBar
 
@@ -32,21 +32,13 @@ fun CameraPage(
     navController: NavHostController
 ) {
     PermissionRequest(
-        permissions = listOf(
-            Manifest.permission.CAMERA),
-        rationale = "需要相机权限来拍照",
-        deniedMessage = "权限被拒绝，无法使用拍照功能",
-        contentHasPermissions = {
-            CameraController(modifier = modifier,
-                navController = navController) {
-
-            }
-        },
-        contentNoPermissions = {
-            CameraNoContent(modifier = modifier,
-                navController = navController)
-        }
+        requiredPermissions = listOf(
+            Manifest.permission.CAMERA)
     )
+
+    CameraController(modifier, navController) {
+
+    }
 }
 
 
@@ -98,41 +90,6 @@ private fun CameraController(
                 }
                 .size(60.dp)
                 .clickable(enabled = true, onClick = takePhoto)
-        )
-    }
-}
-
-/**
- * 相机控制组件
- */
-@Composable
-private fun CameraNoContent(
-    modifier: Modifier = Modifier,
-    navController: NavHostController,
-) {
-    Column (
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.fillMaxSize()
-    ) {
-        SmallTopAppBar(
-            backgroundColor = Color.Transparent,
-            navigationIcon = {
-                IconButton(onClick = { navController.navigateUp() }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "back"
-                    )
-                }
-            },
-            title = "相機"
-        )
-
-        Text(
-            text = "请授予拍摄权限",
-            color = Color.Red,
-            modifier = Modifier
-                .padding(top = 40.dp)
-
         )
     }
 }
