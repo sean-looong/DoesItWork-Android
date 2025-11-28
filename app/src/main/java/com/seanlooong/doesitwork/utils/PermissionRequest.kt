@@ -1,3 +1,4 @@
+import android.R
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,40 +24,51 @@ import java.util.Locale
 @Composable
 fun PermissionRequest(
     requiredPermissions: List<String>,
+    showRationale: Boolean = false,
+    showPermanentlyDenied: Boolean = false
 ) {
     val context = LocalContext.current
-    var showRationale by remember { mutableStateOf(false) }
+    var showRequestPermissions by remember { mutableStateOf(false) }
     var showPermissionDenied by remember { mutableStateOf(false) }
-    var showFirstTimeRationale by remember { mutableStateOf(false) }
-    var firstTimePermissions by remember { mutableStateOf<List<String>>(emptyList()) }
+    // 需要被请求的权限
+    var needRequestPermissions = listOf<String>()
+    // 所有永远被拒绝且不再询问的权限
+    val deniedPermissionsPermissions = mutableListOf<String>()
     val dataStoreManager = DataStoreManager.getInstance()
 
     // 权限请求后的检查 - 先声明
-    fun checkPermissionsAfterRequest() {
-        val permissionState = PermissionState(requiredPermissions, context, dataStoreManager)
-        when {
-            permissionState.hasAllPermissions -> {
-                showRationale = false
-                showPermissionDenied = false
-                showFirstTimeRationale = false
-            }
-            permissionState.permanentlyDeniedPermissions.isNotEmpty() -> {
-                showPermissionDenied = true
-                showRationale = false
-                showFirstTimeRationale = false
-            }
-            else -> {
-                showRationale = false
-                showPermissionDenied = false
-                showFirstTimeRationale = false
+    fun checkPermissionsAfterRequest(result: Map<String, Boolean>) {
+        deniedPermissionsPermissions.clear()
+        for (requestResult in result) {
+            val permission = requestResult.key
+            val isGranted = requestResult.value
+            if (isGranted) {
+                dataStoreManager.putIntSync("permission_$permission", PermissionStates.STATE_REQUESTED)
+            } else {
+                val shouldShowRationale = if (context is androidx.activity.ComponentActivity) {
+                    ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
+                } else {
+                    false
+                }
+
+                if (shouldShowRationale) {
+                    dataStoreManager.putIntSync("permission_$permission", PermissionStates.STATE_REQUESTED)
+                } else {
+                    // 之前已经拒绝且不再询问的权限加入到需要数组中
+                    if (dataStoreManager.getIntSync(
+                            "permission_$permission",
+                            PermissionStates.STATE_PERMANENTLY_DENIED) == PermissionStates.STATE_PERMANENTLY_DENIED) {
+                        deniedPermissionsPermissions.add(permission)
+                    }
+                    dataStoreManager.putIntSync("permission_$permission", PermissionStates.STATE_PERMANENTLY_DENIED)
+                }
             }
         }
-    }
 
-    // 标记权限为已请求过
-    fun markPermissionsAsRequested(permissions: List<String>) {
-        permissions.forEach { permission ->
-            dataStoreManager.putBooleanSync("permission_$permission", false)
+        // 之前包含了已经拒绝且不再询问的权限，但是需要强制询问
+        if (!deniedPermissionsPermissions.isEmpty() && showPermanentlyDenied) {
+            showRequestPermissions = false
+            showPermissionDenied = true
         }
     }
 
@@ -64,63 +76,32 @@ fun PermissionRequest(
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        // 在权限请求结果返回时标记权限为已请求过
-        markPermissionsAsRequested(requiredPermissions)
-        checkPermissionsAfterRequest()
+        checkPermissionsAfterRequest(results)
     }
 
     // 请求权限
     fun requestPermissions() {
         val permissionState = PermissionState(requiredPermissions, context, dataStoreManager)
-        val permissionsToRequest = permissionState.deniedPermissions.toTypedArray()
+        val permissionsToRequest = permissionState.requestPermissions.toTypedArray()
         if (permissionsToRequest.isNotEmpty()) {
             permissionLauncher.launch(permissionsToRequest)
-        } else {
-            // 如果没有需要请求的权限，直接检查状态
-            checkPermissionsAfterRequest()
         }
     }
 
     // 检查权限状态
     fun checkPermissions() {
         val permissionState = PermissionState(requiredPermissions, context, dataStoreManager)
-        when {
+        needRequestPermissions = permissionState.requestPermissions
+        if (permissionState.hasAllPermissions) {
             // 所有权限都已授予
-            permissionState.hasAllPermissions -> {
-                showRationale = false
-                showPermissionDenied = false
-                showFirstTimeRationale = false
-            }
-            // 检查是否需要显示解释或有些权限被永久拒绝
-            permissionState.hasPartialPermissions -> {
-                val permanentlyDenied = permissionState.permanentlyDeniedPermissions
-                val shouldShowRationale = permissionState.shouldShowRationale
-                val firstTimePerms = permissionState.firstTimePermissions
-
-                when {
-                    // 第一次请求权限（最高优先级）
-                    firstTimePerms.isNotEmpty() -> {
-                        firstTimePermissions = firstTimePerms
-                        showFirstTimeRationale = true
-                        showRationale = false
-                        showPermissionDenied = false
-                    }
-                    // 需要显示解释（用户之前拒绝过）
-                    shouldShowRationale -> {
-                        showRationale = true
-                        showFirstTimeRationale = false
-                        showPermissionDenied = false
-                    }
-                    // 有权限被永久拒绝（最低优先级）
-                    permanentlyDenied.isNotEmpty() -> {
-                        showPermissionDenied = true
-                        showRationale = false
-                        showFirstTimeRationale = false
-                    }
-                }
-            }
-            // 第一次申请 - 直接请求权限（不在这里标记，在结果回调中标记）
-            else -> {
+            showPermissionDenied = false
+            showRequestPermissions = false
+        } else {
+            // 需要请求的权限
+            showPermissionDenied = false
+            if (showRationale && permissionState.isFirstTimePermissions) {
+                showRequestPermissions = true
+            } else {
                 requestPermissions()
             }
         }
@@ -133,33 +114,21 @@ fun PermissionRequest(
 
     // 根据状态显示不同的UI
     when {
-        showFirstTimeRationale -> {
-            FirstTimePermissionDialog(
-                firstTimePermissions = firstTimePermissions,
+        showRequestPermissions -> {
+            RequestPermissionDialog(
+                requestPermissions = needRequestPermissions,
                 onDismiss = {
-                    showFirstTimeRationale = false
+                    showRequestPermissions = false
                 },
                 onRequestPermission = {
-                    showFirstTimeRationale = false
                     requestPermissions()
-                }
-            )
-        }
-        showRationale -> {
-            val rationalePermissions = PermissionState(requiredPermissions, context, dataStoreManager).rationalePermissions
-            PermissionRationaleDialog(
-                rationalePermissions = rationalePermissions,
-                onDismiss = { showRationale = false },
-                onRequestPermission = {
-                    showRationale = false
-                    requestPermissions()
+                    showRequestPermissions = false
                 }
             )
         }
         showPermissionDenied -> {
-            val deniedPermissions = PermissionState(requiredPermissions, context, dataStoreManager).permanentlyDeniedPermissions
             PermissionDeniedDialog(
-                deniedPermissions = deniedPermissions,
+                deniedPermissions = deniedPermissionsPermissions,
                 onDismiss = { showPermissionDenied = false },
                 onGoToSettings = {
                     openAppSettings(context)
@@ -176,66 +145,41 @@ fun PermissionRequest(
 // 权限项数据类
 data class PermissionItem(
     val permission: String,
-    val isFirstTime: Boolean,
     val isGranted: Boolean,
-    val shouldShowRationale: Boolean
+    val isFirstTime: Boolean
 )
 
 // PermissionState 类
-class PermissionState(
+private class PermissionState(
     private val permissions: List<String>,
     private val context: Context,
     private val dataStoreManager: DataStoreManager
 ) {
-    private val permissionItems: List<PermissionItem> by lazy {
-        permissions.map { permission ->
-            PermissionItem(
-                permission = permission,
-                isFirstTime = dataStoreManager.getBooleanSync("permission_$permission", true),
-                isGranted = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED,
-                shouldShowRationale = if (context is androidx.activity.ComponentActivity) {
-                    ActivityCompat.shouldShowRequestPermissionRationale(context, permission)
-                } else {
-                    false
-                }
-            )
-        }
+    private val permissionItems: List<PermissionItem> = permissions.map { permission ->
+        PermissionItem(
+            isGranted = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED,
+            isFirstTime = dataStoreManager.getIntSync(
+                "permission_$permission",
+                PermissionStates.STATE_INITIAL) == PermissionStates.STATE_INITIAL,
+            permission = permission
+        )
     }
 
+    // 是否包含所有权限
     val hasAllPermissions: Boolean
         get() = permissionItems.all { it.isGranted }
 
-    val shouldShowRationale: Boolean
-        get() = permissionItems.any { !it.isGranted && it.shouldShowRationale }
+    // 第一次请求的权限
+    val isFirstTimePermissions: Boolean
+        get() = permissionItems.any { !it.isGranted && it.isFirstTime }
 
-    val permanentlyDeniedPermissions: List<String>
-        get() = permissionItems.filter {
-            !it.isGranted && !it.shouldShowRationale
-        }.map { it.permission }
-
+    // 所有被授予的权限
     val grantedPermissions: List<String>
         get() = permissionItems.filter { it.isGranted }.map { it.permission }
 
-    val deniedPermissions: List<String>
+    // 所有需要被授权的权限(不包含不再询问的权限)
+    val requestPermissions: List<String>
         get() = permissionItems.filter { !it.isGranted }.map { it.permission }
-
-    // 需要显示解释的权限（用户之前拒绝过）
-    val rationalePermissions: List<String>
-        get() = permissionItems.filter {
-            !it.isGranted && it.shouldShowRationale
-        }.map { it.permission }
-
-    // 第一次请求的权限
-    val firstTimePermissions: List<String>
-        get() = permissionItems.filter {
-            !it.isGranted && it.isFirstTime && !it.shouldShowRationale
-        }.map { it.permission }
-
-    // 是否有部分权限需要处理
-    val hasPartialPermissions: Boolean
-        get() = firstTimePermissions.isNotEmpty() ||
-                rationalePermissions.isNotEmpty() ||
-                permanentlyDeniedPermissions.isNotEmpty()
 }
 
 // 打开应用设置
@@ -309,12 +253,12 @@ private val permissionNameMap = mapOf(
 
 // 第一次权限请求对话框
 @Composable
-fun FirstTimePermissionDialog(
-    firstTimePermissions: List<String>,
+fun RequestPermissionDialog(
+    requestPermissions: List<String>,
     onDismiss: () -> Unit,
     onRequestPermission: () -> Unit
 ) {
-    val permissionNames = getPermissionChineseNames(firstTimePermissions)
+    val permissionNames = getPermissionChineseNames(requestPermissions)
     val permissionText = permissionNames.joinToString("、")
 
     AlertDialog(
@@ -330,39 +274,6 @@ fun FirstTimePermissionDialog(
         confirmButton = {
             TextButton(onClick = onRequestPermission) {
                 Text("继续")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    )
-}
-
-// 权限解释对话框
-@Composable
-fun PermissionRationaleDialog(
-    rationalePermissions: List<String>,
-    onDismiss: () -> Unit,
-    onRequestPermission: () -> Unit
-) {
-    val permissionNames = getPermissionChineseNames(rationalePermissions)
-    val permissionText = permissionNames.joinToString("、")
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("需要权限") },
-        text = {
-            Column {
-                Text("此功能需要以下权限才能正常工作：")
-                Text(permissionText, style = androidx.compose.ui.text.TextStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
-                Text("请授予这些权限以继续使用完整功能。")
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onRequestPermission) {
-                Text("授予权限")
             }
         },
         dismissButton = {
@@ -404,4 +315,10 @@ fun PermissionDeniedDialog(
             }
         }
     )
+}
+
+object PermissionStates {
+    const val STATE_INITIAL = 0 // 初始化状态 - 从未请求过该权限
+    const val STATE_REQUESTED = 1 // 已请求但被拒绝 - 用户拒绝但未选择"不再询问"
+    const val STATE_PERMANENTLY_DENIED = 2 // 永久被拒绝 - 用户选择"不再询问"
 }
