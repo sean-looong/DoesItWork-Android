@@ -18,6 +18,8 @@ foundationLayout = "1.9.5"
 accompanist = "0.37.3"
 runtime = "1.9.5"
 runtimeAnnotation = "1.9.5"
+camerax = "1.5.0-alpha06"
+cameraView = "1.5.1"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
@@ -45,6 +47,15 @@ androidx-compose-foundation-layout = { group = "androidx.compose.foundation", na
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 androidx-compose-runtime-annotation = { group = "androidx.compose.runtime", name = "runtime-annotation", version.ref = "runtimeAnnotation" }
+# Contains the basic camera functionality such as SurfaceRequest
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+# Contains the CameraXViewfinder composable
+androidx-camera-compose = { module = "androidx.camera:camera-compose", version.ref = "camerax" }
+# Allows us to bind the camera preview to our UI lifecycle
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+# The specific camera implementation that renders the preview
+androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraView" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
