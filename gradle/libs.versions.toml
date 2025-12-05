@@ -16,10 +16,13 @@ navigationRuntimeKtx = "2.9.6"
 navigationCompose = "2.9.6"
 foundationLayout = "1.9.5"
 accompanist = "0.37.3"
+roomKtx = "2.8.4"
+roomRuntimeVersion = "2.8.4"
 runtime = "1.9.5"
 runtimeAnnotation = "1.9.5"
 camerax = "1.5.0-alpha06"
 cameraView = "1.5.1"
+adapters = "3.2.0-alpha11"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
@@ -27,6 +30,9 @@ androidx-constraintlayout-compose = { module = "androidx.constraintlayout:constr
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "datastoreCore" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomKtx" }
+androidx-room-paging = { module = "androidx.room:room-paging", version.ref = "roomKtx" }
+androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "roomKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -56,6 +62,8 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 # The specific camera implementation that renders the preview
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraView" }
+room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntimeVersion" }
+androidx-adapters = { group = "androidx.databinding", name = "adapters", version.ref = "adapters" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
