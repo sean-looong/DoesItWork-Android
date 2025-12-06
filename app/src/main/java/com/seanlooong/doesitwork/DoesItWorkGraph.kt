@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.seanlooong.doesitwork.camera.CameraPage
+import com.seanlooong.doesitwork.wallet.WalletPage
 
 @Composable
 fun DoesItWorkGraph(
@@ -25,6 +26,11 @@ fun DoesItWorkGraph(
             route = DoesItWorkDestinations.CAMERA_ROUTE
         ) {
             CameraPage(navController = navController)
+        }
+        composable(
+            route = DoesItWorkDestinations.WALLET_ROUTE
+        ) {
+            WalletPage(navController = navController)
         }
     }
 }

@@ -2,6 +2,7 @@ package com.seanlooong.doesitwork
 
 import LoggerConfig
 import android.app.Application
+import com.seanlooong.doesitwork.database.DatabaseInitializer
 
 class MyApplication : Application() {
 
@@ -20,6 +21,9 @@ class MyApplication : Application() {
                 maxFiles = 10
             )
         )
+
+        // 初始化数据库
+        DatabaseInitializer.initializeDatabase(this)
 
         // 设置全局异常处理器
         setupGlobalExceptionHandler()

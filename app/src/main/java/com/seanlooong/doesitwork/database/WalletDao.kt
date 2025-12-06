@@ -8,7 +8,6 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import java.util.Date
 
 @Dao
 interface WalletDao {
@@ -50,7 +49,7 @@ interface WalletDao {
         FROM wallet_transactions t
         LEFT JOIN wallet_categories c ON t.category_id = c.id
         WHERE t.is_deleted = 0
-        ORDER BY t.date DESC, t.time DESC
+        ORDER BY t.time DESC
         """
     )
     fun getTransactions(): Flow<List<TransactionWithCategory>>
@@ -61,20 +60,19 @@ interface WalletDao {
         FROM wallet_transactions t
         LEFT JOIN wallet_categories c ON t.category_id = c.id
         WHERE t.is_deleted = 0
-        AND t.date BETWEEN :startDate AND :endDate
-        ORDER BY t.date DESC, t.time DESC
+        AND t.time BETWEEN :startTime AND :endTime
+        ORDER BY t.time DESC
         """
     )
     fun getTransactionsByDateRange(
-        walletId: Long,
-        startDate: Date,
-        endDate: Date
+        startTime: Long,
+        endTime: Long
     ): Flow<List<TransactionWithCategory>>
 
     @Query(value =
         """
-        SELECT 
-            strftime('%Y-%m', date/1000, 'unixepoch') as month,
+        SELECT
+            strftime('%Y-%m', datetime(time/1000), 'unixepoch', 'localtime') as month,
             type,
             SUM(amount) as total
         FROM wallet_transactions
@@ -83,31 +81,30 @@ interface WalletDao {
         ORDER BY month DESC
         """
     )
-    fun getMonthlySummary(walletId: Long): Flow<List<MonthlySummary>>
+    fun getMonthlySummary(): Flow<List<MonthlySummary>>
 
     @Query(value =
         """
-        SELECT 
-            c.id as category_id,
-            c.name as category_name,
-            c.icon as category_icon,
-            c.color as category_color,
-            SUM(t.amount) as total_amount,
-            COUNT(*) as transaction_count
+        SELECT
+            c.id as categoryId,
+            c.name as categoryName,
+            c.icon as categoryIcon,
+            c.color as categoryColor,
+            SUM(t.amount) as totalAmount,
+            COUNT(*) as transactionCount
         FROM wallet_transactions t
         JOIN wallet_categories c ON t.category_id = c.id
         WHERE t.is_deleted = 0
         AND t.type = :type
-        AND t.date BETWEEN :startDate AND :endDate
+        AND t.time BETWEEN :startTime AND :endTime
         GROUP BY c.id
-        ORDER BY total_amount DESC
+        ORDER BY totalAmount DESC
         """
     )
     fun getCategorySummary(
-        walletId: Long,
         type: WalletTransaction.TransactionType,
-        startDate: Date,
-        endDate: Date
+        startTime: Long,
+        endTime: Long
     ): Flow<List<CategorySummary>>
 }
 

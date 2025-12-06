@@ -90,6 +90,9 @@ fun HomePage(
             HomeCard(modifier, "相機") {
                 navController.navigate(DoesItWorkDestinations.CAMERA_ROUTE)
             }
+            HomeCard(modifier, "錢包") {
+                navController.navigate(DoesItWorkDestinations.WALLET_ROUTE)
+            }
         }
     }
 }

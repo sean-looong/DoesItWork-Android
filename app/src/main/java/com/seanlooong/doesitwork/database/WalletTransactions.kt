@@ -5,7 +5,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import java.util.Date
 
 /**
  * 交易记录表 (transactions) - 核心表
@@ -21,9 +20,8 @@ import java.util.Date
         )
     ],
     indices = [
-        Index(value = ["date"]),
-        Index(value = ["category_id"]),
-        Index(value = ["wallet_id"])
+        Index(value = ["time"]),
+        Index(value = ["category_id"])
     ]
 )
 data class WalletTransaction(
@@ -42,11 +40,8 @@ data class WalletTransaction(
     @ColumnInfo(name = "description")
     val description: String, // 描述
 
-    @ColumnInfo(name = "date")
-    val date: Date, // 交易日期
-
     @ColumnInfo(name = "time")
-    val time: Date, // 交易时间
+    val time: Long = System.currentTimeMillis(), // 交易时间
 
     @ColumnInfo(name = "type")
     val type: TransactionType, // 交易类型
@@ -66,12 +61,6 @@ data class WalletTransaction(
     @ColumnInfo(name = "attachment")
     val attachment: String?, // 附件路径（如收据图片）
 
-    @ColumnInfo(name = "is_transfer")
-    val isTransfer: Boolean = false, // 是否为转账
-
-    @ColumnInfo(name = "transfer_to_wallet_id")
-    val transferToWalletId: Long?, // 转账目标钱包ID
-
     @ColumnInfo(name = "tags")
     val tags: String?, // 标签（JSON格式存储）
 
@@ -79,10 +68,10 @@ data class WalletTransaction(
     val isDeleted: Boolean = false, // 软删除标记
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Date = Date(),
+    val createdAt: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "updated_at")
-    val updatedAt: Date = Date()
+    val updatedAt: Long = System.currentTimeMillis()
 ) {
     enum class TransactionType {
         INCOME,     // 收入

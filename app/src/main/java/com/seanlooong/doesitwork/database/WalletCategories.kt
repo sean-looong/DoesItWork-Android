@@ -40,10 +40,10 @@ data class WalletCategories(
     val isActive: Boolean = true, // 是否启用
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Date = Date(),
+    val createdAt: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "updated_at")
-    val updatedAt: Date = Date()
+    val updatedAt: Long = System.currentTimeMillis()
 ) {
     enum class CategoryType {
         INCOME,  // 收入
