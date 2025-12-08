@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.seanlooong.doesitwork.camera.CameraPage
+import com.seanlooong.doesitwork.wallet.WalletAddTransactionPage
 import com.seanlooong.doesitwork.wallet.WalletPage
 
 @Composable
@@ -31,6 +32,11 @@ fun DoesItWorkGraph(
             route = DoesItWorkDestinations.WALLET_ROUTE
         ) {
             WalletPage(navController = navController)
+        }
+        composable(
+            route = DoesItWorkDestinations.WALLET_ADD_ROUTE
+        ) {
+            WalletAddTransactionPage(navController = navController)
         }
     }
 }
