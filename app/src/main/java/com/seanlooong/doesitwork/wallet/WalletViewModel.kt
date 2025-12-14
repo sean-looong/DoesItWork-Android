@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.seanlooong.doesitwork.database.TransactionWithCategory
 import com.seanlooong.doesitwork.database.WalletCategories
+import com.seanlooong.doesitwork.database.WalletCategories.CategoryType
 import com.seanlooong.doesitwork.database.WalletDao
 import com.seanlooong.doesitwork.database.WalletTransaction
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,8 +17,12 @@ class WalletViewModel(
     private val dao: WalletDao
 ) : ViewModel() {
 
-    private val _categories = MutableStateFlow<List<WalletCategories>>(emptyList())
-    val categories: StateFlow<List<WalletCategories>> = _categories.asStateFlow()
+    // 收入分类
+    private val _categoriesIncome = MutableStateFlow<List<WalletCategories>>(emptyList())
+    // 支出分类
+    private val _categoriesExpense = MutableStateFlow<List<WalletCategories>>(emptyList())
+    val categoriesIncome: StateFlow<List<WalletCategories>> = _categoriesIncome.asStateFlow()
+    val categoriesExpense: StateFlow<List<WalletCategories>> = _categoriesExpense.asStateFlow()
 
     private val _transactions = MutableStateFlow<List<TransactionWithCategory>>(emptyList())
     val transactions: StateFlow<List<TransactionWithCategory>> = _transactions.asStateFlow()
@@ -32,14 +37,30 @@ class WalletViewModel(
 
     private fun loadCategories() {
         viewModelScope.launch {
-            dao.getAllCategories()
-                .catch { exception ->
-                    // 处理错误
-                    println("加载分类失败: ${exception.message}")
-                }
-                .collect { categories ->
-                    _categories.value = categories
-                }
+            // 因为代码中的 collect 是一个挂起函数，它会挂起当前协程直到 Flow 完成。
+            // 当第一个 collect 执行时，它会一直挂起等待数据，导致第二句代码永远不会执行。
+            // 方法1：用launch包裹，分别执行两个协程，
+            // 方法2：写两个loadCategories方法，分别调用
+            launch {
+                dao.getCategoriesByType(CategoryType.INCOME)
+                    .catch { exception ->
+                        // 处理错误
+                        println("加载分类失败: ${exception.message}")
+                    }
+                    .collect { categories ->
+                        _categoriesIncome.value = categories
+                    }
+            }
+            launch {
+                dao.getCategoriesByType(CategoryType.EXPENSE)
+                    .catch { exception ->
+                        // 处理错误
+                        println("加载分类失败: ${exception.message}")
+                    }
+                    .collect { categories ->
+                        _categoriesExpense.value = categories
+                    }
+            }
         }
     }
 
