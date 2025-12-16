@@ -39,7 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.seanlooong.doesitwork.database.WalletCategories
 import com.seanlooong.exerciseandroid.ui.widgets.SmallTopAppBar
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -100,6 +100,7 @@ fun WalletCategoriesPan(
     modifier: Modifier = Modifier
 ) {
     // 当前选中的标签索引 (0=支出, 1=收入)
+    val viewModel = WalletViewModelProvider.getOrCreateViewModel()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     // column让tab居中显示
@@ -121,7 +122,10 @@ fun WalletCategoriesPan(
                 // 支出标签
                 Tab(
                     selected = selectedTabIndex == 0,
-                    onClick = { selectedTabIndex = 0 },
+                    onClick = {
+                        selectedTabIndex = 0
+                        viewModel.updateCategoryType(WalletCategories.CategoryType.EXPENSE)
+                    },
                     modifier = Modifier.padding(horizontal = 8.dp),
                     text = {
                         Text(
@@ -135,7 +139,8 @@ fun WalletCategoriesPan(
                 // 收入标签
                 Tab(
                     selected = selectedTabIndex == 1,
-                    onClick = { selectedTabIndex = 1 },
+                    onClick = { selectedTabIndex = 1
+                        viewModel.updateCategoryType(WalletCategories.CategoryType.INCOME)},
                     modifier = Modifier.padding(horizontal = 8.dp),
                     text = {
                         Text(
@@ -151,72 +156,25 @@ fun WalletCategoriesPan(
     }
 
     when(selectedTabIndex) {
-        0 -> WalletCategoriesExpenseSelector(modifier)
-        1 -> WalletCategoriesIncomeSelector(modifier)
-    }
-}
-
-@Composable
-fun WalletCategoriesExpenseSelector(
-    modifier: Modifier = Modifier
-) {
-    val viewModel = WalletViewModelProvider.getOrCreateViewModel()
-    // 观察数据
-    val categories by viewModel.categoriesExpense.collectAsState()
-    val (selectedOption, onOptionSelected) = remember {
-        mutableStateOf(categories[0])
-    }
-
-    FlowRow (
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        maxItemsInEachRow = 5
-    ) {
-        repeat(categories.size) {
-            val text = categories[it]
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        if (selectedOption == text) Color.Blue else Color.LightGray,
-                        CircleShape
-                    )
-                    .selectable(
-                        selected = (selectedOption == text),
-                        onClick = { onOptionSelected(text) },
-                        role = Role.RadioButton
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                RadioButton(
-                    selected = (text == selectedOption),
-                    onClick = null,
-                    modifier = Modifier.size(0.dp),
-                    colors = RadioButtonDefaults.colors(
-                        selectedColor = Color.Transparent,
-                        unselectedColor = Color.Transparent
-                    )
-                )
-                Text(text = categories[it].name)
-            }
+        0 -> {
+            WalletCategoriesExpenseSelector(modifier, WalletCategories.CategoryType.EXPENSE)
+        }
+        1 -> {
+            WalletCategoriesExpenseSelector(modifier, WalletCategories.CategoryType.INCOME)
         }
     }
 }
 
 @Composable
-fun WalletCategoriesIncomeSelector(
-    modifier: Modifier = Modifier
+fun WalletCategoriesExpenseSelector(
+    modifier: Modifier = Modifier,
+    categoryType: WalletCategories.CategoryType
 ) {
     val viewModel = WalletViewModelProvider.getOrCreateViewModel()
-    // 观察数据
-    val categories by viewModel.categoriesIncome.collectAsState()
-    val (selectedOption, onOptionSelected) = remember {
-        mutableStateOf(categories[0])
-    }
+    val categories by if (categoryType == WalletCategories.CategoryType.EXPENSE)
+        viewModel.categoriesExpense.collectAsState() else viewModel.categoriesIncome.collectAsState()
+    val selectedCategory by if (categoryType == WalletCategories.CategoryType.EXPENSE)
+        viewModel.categoryExpenseSelected.collectAsState() else viewModel.categoryIncomeSelected.collectAsState()
 
     FlowRow (
         modifier = modifier
@@ -228,23 +186,29 @@ fun WalletCategoriesIncomeSelector(
         maxItemsInEachRow = 5
     ) {
         repeat(categories.size) {
-            val text = categories[it]
+            val category = categories[it]
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        if (selectedOption == text) Color.Blue else Color.LightGray,
+                        if (selectedCategory == category) Color.Blue else Color.LightGray,
                         CircleShape
                     )
                     .selectable(
-                        selected = (selectedOption == text),
-                        onClick = { onOptionSelected(text) },
+                        selected = (selectedCategory == category),
+                        onClick = {
+                            if (categoryType == WalletCategories.CategoryType.EXPENSE) {
+                                viewModel.updateCategoryExpense(category)
+                            } else {
+                                viewModel.updateCategoryIncome(category)
+                            }
+                        },
                         role = Role.RadioButton
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 RadioButton(
-                    selected = (text == selectedOption),
+                    selected = (selectedCategory == category),
                     onClick = null,
                     modifier = Modifier.size(0.dp),
                     colors = RadioButtonDefaults.colors(

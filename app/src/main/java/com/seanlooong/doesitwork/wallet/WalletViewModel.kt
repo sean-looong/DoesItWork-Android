@@ -21,8 +21,18 @@ class WalletViewModel(
     private val _categoriesIncome = MutableStateFlow<List<WalletCategories>>(emptyList())
     // 支出分类
     private val _categoriesExpense = MutableStateFlow<List<WalletCategories>>(emptyList())
+    // 当前选择的收入分类
+    private val _categoryIncomeSelected = MutableStateFlow<WalletCategories?>(null)
+    // 当前选择的支出分类
+    private val _categoryExpenseSelected = MutableStateFlow<WalletCategories?>(null)
+    // 当前选择的分类
+    private val _currentCategoryType = MutableStateFlow(CategoryType.EXPENSE)
+
     val categoriesIncome: StateFlow<List<WalletCategories>> = _categoriesIncome.asStateFlow()
     val categoriesExpense: StateFlow<List<WalletCategories>> = _categoriesExpense.asStateFlow()
+    val currentCategoryType: StateFlow<CategoryType> = _currentCategoryType.asStateFlow()
+    val categoryIncomeSelected: StateFlow<WalletCategories?> = _categoryIncomeSelected.asStateFlow()
+    val categoryExpenseSelected: StateFlow<WalletCategories?> = _categoryExpenseSelected.asStateFlow()
 
     private val _transactions = MutableStateFlow<List<TransactionWithCategory>>(emptyList())
     val transactions: StateFlow<List<TransactionWithCategory>> = _transactions.asStateFlow()
@@ -49,6 +59,7 @@ class WalletViewModel(
                     }
                     .collect { categories ->
                         _categoriesIncome.value = categories
+                        _categoryIncomeSelected.value = _categoriesIncome.value.first()
                     }
             }
             launch {
@@ -59,12 +70,13 @@ class WalletViewModel(
                     }
                     .collect { categories ->
                         _categoriesExpense.value = categories
+                        _categoryExpenseSelected.value = _categoriesExpense.value.first()
                     }
             }
         }
     }
 
-    private fun loadTransactions(walletId: Long = 1L) {
+    private fun loadTransactions() {
         viewModelScope.launch {
             dao.getTransactions()
                 .catch { exception ->
@@ -75,6 +87,40 @@ class WalletViewModel(
                     _transactions.value = transactions
                 }
         }
+    }
+
+    /**
+     * 重置选择的分类
+     */
+    fun resetSelectCategories() {
+        _currentCategoryType.value = CategoryType.EXPENSE
+        if (_categoriesIncome.value.isNotEmpty()) {
+            _categoryIncomeSelected.value = _categoriesIncome.value.first()
+        }
+        if (_categoriesExpense.value.isNotEmpty()) {
+            _categoryExpenseSelected.value = _categoriesExpense.value.first()
+        }
+    }
+
+    /**
+     * 更新当前选择的分类类型
+     */
+    fun updateCategoryType(type: CategoryType) {
+        _currentCategoryType.value = type
+    }
+
+    /**
+     * 更新选择的收入分类
+     */
+    fun updateCategoryIncome(category: WalletCategories) {
+        _categoryIncomeSelected.value = category
+    }
+
+    /**
+     * 更新选择的支出分类
+     */
+    fun updateCategoryExpense(category: WalletCategories) {
+        _categoryExpenseSelected.value = category
     }
 
     fun addTransaction(transaction: WalletTransaction) {

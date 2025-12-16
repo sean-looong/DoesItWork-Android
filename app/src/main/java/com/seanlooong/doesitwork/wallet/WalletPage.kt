@@ -25,6 +25,7 @@ fun WalletPage(
     navController: NavHostController) {
 
     val viewModel = WalletViewModelProvider.getOrCreateViewModel()
+    viewModel.resetSelectCategories()
 
     Column(modifier = modifier
         .fillMaxSize()
