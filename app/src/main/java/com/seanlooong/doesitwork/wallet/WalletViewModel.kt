@@ -2,6 +2,7 @@ package com.seanlooong.doesitwork.wallet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.seanlooong.doesitwork.data.SnackbarMessage
 import com.seanlooong.doesitwork.database.TransactionWithCategory
 import com.seanlooong.doesitwork.database.WalletCategories
 import com.seanlooong.doesitwork.database.WalletCategories.CategoryType
@@ -16,6 +17,9 @@ import kotlinx.coroutines.launch
 class WalletViewModel(
     private val dao: WalletDao
 ) : ViewModel() {
+
+    private val _snackbarState = MutableStateFlow<SnackbarMessage?>(null)
+    val snackbarState: StateFlow<SnackbarMessage?> = _snackbarState.asStateFlow()
 
     // 收入分类
     private val _categoriesIncome = MutableStateFlow<List<WalletCategories>>(emptyList())
@@ -144,6 +148,18 @@ class WalletViewModel(
     fun addCategory(category: WalletCategories) {
         viewModelScope.launch {
             dao.insertCategory(category)
+        }
+    }
+
+    fun showSnackbar(message: SnackbarMessage) {
+        viewModelScope.launch {
+            _snackbarState.emit(message)
+        }
+    }
+
+    fun clearSnackbar() {
+        viewModelScope.launch {
+            _snackbarState.emit(null)
         }
     }
 }

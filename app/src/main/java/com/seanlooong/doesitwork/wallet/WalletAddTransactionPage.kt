@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
@@ -38,19 +40,26 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -61,8 +70,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.seanlooong.doesitwork.data.SnackbarMessage
 import com.seanlooong.doesitwork.database.WalletCategories
 import com.seanlooong.exerciseandroid.ui.widgets.SmallTopAppBar
+import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -75,6 +86,29 @@ fun WalletAddTransactionPage(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION)
     )
+
+    val density = LocalDensity.current
+    val viewModel = WalletViewModelProvider.getOrCreateViewModel()
+    val snackbarState by viewModel.snackbarState.collectAsState()
+    val snackbarHostState  = remember { SnackbarHostState() }
+
+    // 监听 Snackbar 状态变化
+    LaunchedEffect(snackbarState) {
+        snackbarState?.let { message ->
+            val result = snackbarHostState.showSnackbar(
+                message = message.message,
+                actionLabel = message.actionLabel,
+                duration = message.duration
+            )
+
+            if (result == SnackbarResult.ActionPerformed) {
+                message.onAction?.invoke()
+            }
+
+            // 清空状态
+            viewModel.clearSnackbar()
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -90,6 +124,17 @@ fun WalletAddTransactionPage(
                 },
                 title = "添加"
             )
+        },
+        snackbarHost = {
+            // 使用 Box 将 Snackbar 定位到顶部
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = WindowInsets.statusBars.getTop(density).dp * 0.3f), // 留出状态栏空间
+                contentAlignment = Alignment.TopCenter
+            ) {
+                SnackbarHost(hostState = snackbarHostState)
+            }
         }
     ) { innerPadding ->
         Column(
@@ -99,18 +144,19 @@ fun WalletAddTransactionPage(
             WalletCategoriesPan(
                 modifier = modifier
                     .fillMaxHeight()
-                    .weight(1f))
-            WalletKeyBoard()
+                    .weight(1f),
+                viewModel = viewModel)
+            WalletKeyBoard(viewModel = viewModel)
         }
     }
 }
 
 @Composable
 fun WalletCategoriesPan(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: WalletViewModel
 ) {
     // 当前选中的标签索引 (0=支出, 1=收入)
-    val viewModel = WalletViewModelProvider.getOrCreateViewModel()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     // column让tab居中显示
@@ -167,10 +213,12 @@ fun WalletCategoriesPan(
 
     when(selectedTabIndex) {
         0 -> {
-            WalletCategoriesExpenseSelector(modifier, WalletCategories.CategoryType.EXPENSE)
+            WalletCategoriesExpenseSelector(
+                modifier, WalletCategories.CategoryType.EXPENSE, viewModel)
         }
         1 -> {
-            WalletCategoriesExpenseSelector(modifier, WalletCategories.CategoryType.INCOME)
+            WalletCategoriesExpenseSelector(
+                modifier, WalletCategories.CategoryType.INCOME, viewModel)
         }
     }
 }
@@ -178,9 +226,9 @@ fun WalletCategoriesPan(
 @Composable
 fun WalletCategoriesExpenseSelector(
     modifier: Modifier = Modifier,
-    categoryType: WalletCategories.CategoryType
+    categoryType: WalletCategories.CategoryType,
+    viewModel: WalletViewModel
 ) {
-    val viewModel = WalletViewModelProvider.getOrCreateViewModel()
     val categories by if (categoryType == WalletCategories.CategoryType.EXPENSE)
         viewModel.categoriesExpense.collectAsState() else viewModel.categoriesIncome.collectAsState()
     val selectedCategory by if (categoryType == WalletCategories.CategoryType.EXPENSE)
@@ -234,7 +282,8 @@ fun WalletCategoriesExpenseSelector(
 
 @Composable
 fun WalletKeyBoard(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: WalletViewModel
 ) {
     var amount by remember { mutableStateOf("0.00") }
     var num1 by remember { mutableStateOf("0.00") }
@@ -328,8 +377,13 @@ fun WalletKeyBoard(
         num2 = "0.00"
         settAmount()
 
-        if (num1.startsWith("-")) {
-            // TODO 提示用户
+        val result: Double = (num1.toDoubleOrNull() ?: 0f) as Double
+        if (result <= 0) {
+            viewModel.showSnackbar(
+                SnackbarMessage("金额必须大于0")
+            )
+        } else {
+
         }
     }
 
@@ -489,11 +543,13 @@ fun Double.toCleanDecimalString(): String {
 @Preview
 @Composable
 fun WalletCategoriesPanPreview() {
-    WalletCategoriesPan()
+    val viewModel = WalletViewModelProvider.getOrCreateViewModel()
+    WalletCategoriesPan(viewModel = viewModel)
 }
 
 @Preview
 @Composable
 fun WalletKeyBoardPreview() {
-    WalletKeyBoard()
+    val viewModel = WalletViewModelProvider.getOrCreateViewModel()
+    WalletKeyBoard(viewModel = viewModel)
 }

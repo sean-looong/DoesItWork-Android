@@ -41,7 +41,7 @@ fun HomePage(
 ) {
     var backHandTime by remember { mutableStateOf(0L) }
     val density = LocalDensity.current
-    val snackBarHostState  = remember { SnackbarHostState() }
+    val snackbarHostState  = remember { SnackbarHostState() }
     // 在 Composable 中创建协程作用域
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -56,7 +56,7 @@ fun HomePage(
         } else {
             backHandTime = System.currentTimeMillis()
             coroutineScope.launch {
-                snackBarHostState.showSnackbar(
+                snackbarHostState.showSnackbar(
                     message = "再滑动一次退出",
                     duration = SnackbarDuration.Short)
             }
@@ -72,7 +72,7 @@ fun HomePage(
                     .padding(top = WindowInsets.statusBars.getTop(density).dp * 0.3f), // 留出状态栏空间
                 contentAlignment = Alignment.TopCenter
             ) {
-                SnackbarHost(hostState = snackBarHostState)
+                SnackbarHost(hostState = snackbarHostState)
             }
         },
         modifier = Modifier.fillMaxSize(),
