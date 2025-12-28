@@ -388,7 +388,7 @@ fun WalletKeyBoard(
     fun writeIntoWalletDatabase(result: Double, latitude: Double, longitude: Double, address: String) {
         var categoryId = viewModel.categoryExpenseSelected.value!!.id
         var type = TransactionType.EXPENSE
-        if (viewModel.currentCategoryType.value == WalletCategories.CategoryType.EXPENSE) {
+        if (viewModel.currentCategoryType.value == WalletCategories.CategoryType.INCOME) {
             categoryId = viewModel.categoryIncomeSelected.value!!.id
             type = TransactionType.INCOME
         }
@@ -406,7 +406,7 @@ fun WalletKeyBoard(
             tags = "{}"
         )
 
-//        viewModel.addTransaction(transaction)
+        viewModel.addTransaction(transaction)
     }
 
     /**
