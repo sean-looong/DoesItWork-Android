@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.play.services.location)
     kapt(libs.room.compiler)
     implementation(libs.androidx.room.paging)
     implementation(libs.androidx.adapters)

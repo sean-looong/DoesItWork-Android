@@ -3,6 +3,10 @@ package com.seanlooong.doesitwork.wallet
 import PermissionRequest
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
+import android.location.Geocoder
+import android.location.Location
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 
@@ -40,7 +44,6 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -59,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
@@ -70,10 +74,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.seanlooong.doesitwork.data.SnackbarMessage
 import com.seanlooong.doesitwork.database.WalletCategories
+import com.seanlooong.doesitwork.database.WalletTransaction
+import com.seanlooong.doesitwork.database.WalletTransaction.TransactionType
 import com.seanlooong.exerciseandroid.ui.widgets.SmallTopAppBar
 import kotlinx.coroutines.launch
+import java.util.Locale
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -292,6 +304,11 @@ fun WalletKeyBoard(
     var description by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val logger = LoggerFactory.getLogger()
+
     val keys = listOf<String>(
         "7", "8", "9", "日期",
         "4", "5", "6", "+",
@@ -368,6 +385,30 @@ fun WalletKeyBoard(
         settAmount()
     }
 
+    fun writeIntoWalletDatabase(result: Double, latitude: Double, longitude: Double, address: String) {
+        var categoryId = viewModel.categoryExpenseSelected.value!!.id
+        var type = TransactionType.EXPENSE
+        if (viewModel.currentCategoryType.value == WalletCategories.CategoryType.EXPENSE) {
+            categoryId = viewModel.categoryIncomeSelected.value!!.id
+            type = TransactionType.INCOME
+        }
+
+        val transaction = WalletTransaction(
+            categoryId = categoryId,
+            amount = result,
+            description = description,
+            type = type,
+            paymentMethod = "",
+            location = address,
+            latitude = latitude,
+            longitude = longitude,
+            attachment = num1,
+            tags = "{}"
+        )
+
+//        viewModel.addTransaction(transaction)
+    }
+
     /**
      * 处理点击完成按钮
      */
@@ -377,12 +418,43 @@ fun WalletKeyBoard(
         num2 = "0.00"
         settAmount()
 
-        val result: Double = (num1.toDoubleOrNull() ?: 0f) as Double
+        val result: Double = (num1.toDoubleOrNull() ?: 0.00)
         if (result <= 0) {
             viewModel.showSnackbar(
                 SnackbarMessage("金额必须大于0")
             )
         } else {
+            scope.launch {
+                getCurrentLocation(
+                    context = context,
+                    onLoading = {
+
+                    },
+                    onSuccess = {
+                        location ->
+                        run {
+                            logger.d(
+                                "",
+                                "get location success: latitude: ${location.latitude} longitude ${location.longitude}"
+                            )
+                            scope.launch {
+                                val address =
+                                    getAddressAsync(context, location.latitude, location.longitude)
+                                writeIntoWalletDatabase(result, location.latitude, location.longitude, address)
+                            }
+
+                        }
+                    },
+                    onError = {
+                        error ->
+                        run {
+                            logger.e("", "get location failed: ${error}")
+                            writeIntoWalletDatabase(result, 0.0, 0.0, "")
+                        }
+                    }
+                )
+            }
+
 
         }
     }
@@ -401,6 +473,9 @@ fun WalletKeyBoard(
         settAmount()
     }
 
+    /**
+     * 点击数字按钮
+     */
     fun onClickNum(input: String) {
         if (sign != "") {
             num2 = contactNum(num2, input)
@@ -537,6 +612,125 @@ fun Double.toCleanDecimalString(): String {
     } else {
         // 去掉末尾的0
         bigDecimal.stripTrailingZeros().toPlainString()
+    }
+}
+
+/**
+ * 获取当前经纬度
+ */
+suspend fun getCurrentLocation(
+    context: Context,
+    onLoading: (Boolean) -> Unit,
+    onSuccess: (Location) -> Unit,
+    onError: (String) -> Unit
+) {
+    try {
+        onLoading(true)
+
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+        // 使用最新版本的API获取位置
+        val locationTask = fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            CancellationTokenSource().token
+        )
+
+        locationTask.addOnSuccessListener { location ->
+            onLoading(false)
+            if (location != null) {
+                onSuccess(location)
+            } else {
+                onError("无法获取位置信息")
+            }
+        }.addOnFailureListener { exception ->
+            onLoading(false)
+            onError(exception.message ?: "获取位置失败")
+        }
+
+    } catch (e: SecurityException) {
+        onLoading(false)
+        onError("位置权限被拒绝")
+    } catch (e: Exception) {
+        onLoading(false)
+        onError(e.message ?: "未知错误")
+    }
+}
+
+// 获取地址（使用新版 API）
+private suspend fun getAddressAsync(context: Context, latitude: Double, longitude: Double): String {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Android 13+ 使用新的异步 API
+        getAddressGeocoderAsync(context, latitude, longitude)
+    } else {
+        // 旧版本的回退方案
+        getAddressGeocoderLegacy(context, latitude, longitude)
+    }
+}
+
+// Android 13+ 的异步地址解析
+@androidx.annotation.RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private suspend fun getAddressGeocoderAsync(
+    context: Context,
+    latitude: Double,
+    longitude: Double
+): String = suspendCoroutine { continuation ->
+    val geocoder = Geocoder(context, Locale.getDefault())
+
+    val geocodeListener = object : android.location.Geocoder.GeocodeListener {
+        override fun onGeocode(addresses: MutableList<android.location.Address>) {
+            if (addresses.isNotEmpty()) {
+                continuation.resume(formatAddress(addresses[0]))
+            } else {
+                continuation.resume("无法获取地址信息")
+            }
+        }
+
+        override fun onError(errorMessage: String?) {
+            continuation.resume("地址解析失败: ${errorMessage ?: "未知错误"}")
+        }
+    }
+
+    geocoder.getFromLocation(latitude, longitude, 1, geocodeListener)
+}
+
+// 旧版本的地址解析（用于 Android 12 及以下）
+private fun getAddressGeocoderLegacy(
+    context: Context,
+    latitude: Double,
+    longitude: Double
+): String {
+    return try {
+        val geocoder = Geocoder(context, Locale.getDefault())
+
+        @Suppress("DEPRECATION")
+        val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+
+        if (addresses?.isNotEmpty() == true) {
+            formatAddress(addresses[0])
+        } else {
+            "无法获取地址信息"
+        }
+    } catch (e: Exception) {
+        "地址解析失败: ${e.message}"
+    }
+}
+
+// 格式化地址信息
+private fun formatAddress(address: android.location.Address): String {
+    val addressParts = mutableListOf<String>()
+
+    // 添加地址组成部分
+    address.thoroughfare?.let { if (it.isNotBlank()) addressParts.add(it) }
+    address.subLocality?.let { if (it.isNotBlank()) addressParts.add(it) }
+    address.locality?.let { if (it.isNotBlank()) addressParts.add(it) }
+    address.adminArea?.let { if (it.isNotBlank()) addressParts.add(it) }
+//    address.countryName?.let { if (it.isNotBlank()) addressParts.add(it) }
+
+    return if (addressParts.isNotEmpty()) {
+        addressParts.reversed().joinToString("")
+    } else {
+        // 如果无法获取详细地址，返回坐标
+        "${address.latitude}, ${address.longitude}"
     }
 }
 
