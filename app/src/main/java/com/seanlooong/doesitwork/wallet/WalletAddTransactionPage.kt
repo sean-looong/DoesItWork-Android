@@ -158,7 +158,7 @@ fun WalletAddTransactionPage(
                     .fillMaxHeight()
                     .weight(1f),
                 viewModel = viewModel)
-            WalletKeyBoard(viewModel = viewModel)
+            WalletKeyBoard(viewModel = viewModel, navController = navController)
         }
     }
 }
@@ -296,7 +296,8 @@ fun WalletCategoriesExpenseSelector(
 @Composable
 fun WalletKeyBoard(
     modifier: Modifier = Modifier,
-    viewModel: WalletViewModel
+    viewModel: WalletViewModel,
+    navController: NavHostController?
 ) {
     var amount by remember { mutableStateOf("0.00") }
     var num1 by remember { mutableStateOf("0.00") }
@@ -408,6 +409,7 @@ fun WalletKeyBoard(
         )
 
         viewModel.addTransaction(transaction)
+        navController?.popBackStack()
     }
 
     /**
@@ -746,5 +748,5 @@ fun WalletCategoriesPanPreview() {
 @Composable
 fun WalletKeyBoardPreview() {
     val viewModel = WalletViewModelProvider.getOrCreateViewModel()
-    WalletKeyBoard(viewModel = viewModel)
+    WalletKeyBoard(viewModel = viewModel, navController = null)
 }
