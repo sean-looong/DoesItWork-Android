@@ -286,7 +286,8 @@ fun WalletCategoriesExpenseSelector(
                         unselectedColor = Color.Transparent
                     )
                 )
-                Text(text = categories[it].name)
+                Text(text = categories[it].name,
+                    color = if (selectedCategory == category) Color.White else Color.Black)
             }
         }
     }
