@@ -38,6 +38,7 @@ class WalletViewModel(
     val categoryIncomeSelected: StateFlow<WalletCategories?> = _categoryIncomeSelected.asStateFlow()
     val categoryExpenseSelected: StateFlow<WalletCategories?> = _categoryExpenseSelected.asStateFlow()
 
+    // 取最近的30条账单记录
     private val _transactions = MutableStateFlow<List<TransactionWithCategory>>(emptyList())
     val transactions: StateFlow<List<TransactionWithCategory>> = _transactions.asStateFlow()
 
@@ -82,7 +83,7 @@ class WalletViewModel(
 
     private fun loadTransactions() {
         viewModelScope.launch {
-            dao.getTransactions()
+            dao.getTransactions(30)
                 .catch { exception ->
                     // 处理错误
                     println("加载交易失败: ${exception.message}")

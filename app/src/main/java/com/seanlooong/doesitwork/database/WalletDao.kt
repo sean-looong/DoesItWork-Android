@@ -50,9 +50,10 @@ interface WalletDao {
         LEFT JOIN wallet_categories c ON t.category_id = c.id
         WHERE t.is_deleted = 0
         ORDER BY t.time DESC
+        LIMIT CASE WHEN :limit > 0 THEN :limit ELSE NULL END
         """
     )
-    fun getTransactions(): Flow<List<TransactionWithCategory>>
+    fun getTransactions(limit: Int = 0): Flow<List<TransactionWithCategory>>
 
     @Query(value =
         """
