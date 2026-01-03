@@ -263,7 +263,8 @@ fun WalletCategoriesSelector(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         maxItemsInEachRow = 5
     ) {
-        repeat(categories.size + 1) {
+        // 将分类数量扩充为5的倍数，方便对齐 +1 是增加添加按钮，其余的显示透明按钮
+        repeat(categories.size + 1 +  (5 - (categories.size + 1) % 5)) {
             if (it < categories.size) {
                 val category = categories[it]
                 Box(
@@ -298,7 +299,7 @@ fun WalletCategoriesSelector(
                     Text(text = categories[it].name,
                         color = if (selectedCategory == category) Color.White else Color.Black)
                 }
-            } else {
+            } else if (it == categories.size) {
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -328,6 +329,13 @@ fun WalletCategoriesSelector(
                         fontSize = 20.sp
                     )
                 }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable(enabled = false, onClick = {})
+                        .background(Color.Transparent)
+                )
             }
         }
     }
