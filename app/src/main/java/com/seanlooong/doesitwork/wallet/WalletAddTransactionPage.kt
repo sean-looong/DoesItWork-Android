@@ -7,8 +7,10 @@ import android.content.Context
 import android.location.Geocoder
 import android.location.Location
 import android.os.Build
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,7 +63,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -81,6 +87,7 @@ import com.seanlooong.doesitwork.data.SnackbarMessage
 import com.seanlooong.doesitwork.database.WalletCategories
 import com.seanlooong.doesitwork.database.WalletTransaction
 import com.seanlooong.doesitwork.database.WalletTransaction.TransactionType
+import com.seanlooong.doesitwork.wallet.dialog.AddCategoryDialog
 import com.seanlooong.exerciseandroid.ui.widgets.SmallTopAppBar
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -225,18 +232,18 @@ fun WalletCategoriesPan(
 
     when(selectedTabIndex) {
         0 -> {
-            WalletCategoriesExpenseSelector(
+            WalletCategoriesSelector(
                 modifier, WalletCategories.CategoryType.EXPENSE, viewModel)
         }
         1 -> {
-            WalletCategoriesExpenseSelector(
+            WalletCategoriesSelector(
                 modifier, WalletCategories.CategoryType.INCOME, viewModel)
         }
     }
 }
 
 @Composable
-fun WalletCategoriesExpenseSelector(
+fun WalletCategoriesSelector(
     modifier: Modifier = Modifier,
     categoryType: WalletCategories.CategoryType,
     viewModel: WalletViewModel
@@ -245,6 +252,7 @@ fun WalletCategoriesExpenseSelector(
         viewModel.categoriesExpense.collectAsState() else viewModel.categoriesIncome.collectAsState()
     val selectedCategory by if (categoryType == WalletCategories.CategoryType.EXPENSE)
         viewModel.categoryExpenseSelected.collectAsState() else viewModel.categoryIncomeSelected.collectAsState()
+    var showDialog by remember { mutableStateOf(false) }
 
     FlowRow (
         modifier = modifier
@@ -255,41 +263,89 @@ fun WalletCategoriesExpenseSelector(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         maxItemsInEachRow = 5
     ) {
-        repeat(categories.size) {
-            val category = categories[it]
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        if (selectedCategory == category) Color.Blue else Color.LightGray,
-                        CircleShape
-                    )
-                    .selectable(
+        repeat(categories.size + 1) {
+            if (it < categories.size) {
+                val category = categories[it]
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            if (selectedCategory == category) Color.Blue else Color.LightGray,
+                            CircleShape
+                        )
+                        .selectable(
+                            selected = (selectedCategory == category),
+                            onClick = {
+                                if (categoryType == WalletCategories.CategoryType.EXPENSE) {
+                                    viewModel.updateCategoryExpense(category)
+                                } else {
+                                    viewModel.updateCategoryIncome(category)
+                                }
+                            },
+                            role = Role.RadioButton
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    RadioButton(
                         selected = (selectedCategory == category),
-                        onClick = {
-                            if (categoryType == WalletCategories.CategoryType.EXPENSE) {
-                                viewModel.updateCategoryExpense(category)
-                            } else {
-                                viewModel.updateCategoryIncome(category)
-                            }
-                        },
-                        role = Role.RadioButton
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                RadioButton(
-                    selected = (selectedCategory == category),
-                    onClick = null,
-                    modifier = Modifier.size(0.dp),
-                    colors = RadioButtonDefaults.colors(
-                        selectedColor = Color.Transparent,
-                        unselectedColor = Color.Transparent
+                        onClick = null,
+                        modifier = Modifier.size(0.dp),
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = Color.Transparent,
+                            unselectedColor = Color.Transparent
+                        )
                     )
-                )
-                Text(text = categories[it].name,
-                    color = if (selectedCategory == category) Color.White else Color.Black)
+                    Text(text = categories[it].name,
+                        color = if (selectedCategory == category) Color.White else Color.Black)
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clickable(true, onClick = {
+                            showDialog = true
+                        })
+                        .drawBehind {
+                            // 绘制虚线圆形边框
+                            drawCircle(
+                                color = Color.Blue,
+                                radius = size.minDimension / 2 - 2.dp.toPx(),
+                                style = Stroke(
+                                    width = 8.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(
+                                        intervals = floatArrayOf(20f, 15f),
+                                        phase = 0f
+                                    )
+                                )
+                            )
+                        }
+                        .background(Color.LightGray, CircleShape)
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "+",
+                        color = Color.Blue,
+                        fontSize = 20.sp
+                    )
+                }
             }
         }
+    }
+
+    if (showDialog) {
+        AddCategoryDialog(showDialog = showDialog,
+            onDismiss = { showDialog = false },
+            onConfirm = { input ->
+                val category = WalletCategories(
+                    name = input,
+                    type = categoryType,
+                    icon = "",
+                    color = ""
+                )
+                viewModel.addCategory(category)
+                showDialog = false
+            }
+        )
     }
 }
 
