@@ -65,7 +65,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -300,6 +299,7 @@ fun WalletCategoriesSelector(
                         color = if (selectedCategory == category) Color.White else Color.Black)
                 }
             } else if (it == categories.size) {
+                // 添加按钮
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -330,6 +330,7 @@ fun WalletCategoriesSelector(
                     )
                 }
             } else {
+                // 用于补齐显示的按钮
                 Box(
                     modifier = Modifier
                         .size(48.dp)
