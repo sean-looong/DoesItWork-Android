@@ -72,10 +72,6 @@ fun WalletPage(
             }
         }
 
-        Spacer(modifier = modifier
-            .fillMaxSize()
-            .weight(1f))
-
         Row(modifier = modifier.fillMaxWidth()) {
             Spacer(modifier = modifier
                 .fillMaxWidth()
